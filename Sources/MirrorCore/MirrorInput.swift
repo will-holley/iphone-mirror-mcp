@@ -268,8 +268,8 @@ public enum MirrorInput {
         }
     }
 
-    /// Sustained mouse drag (icon rearrange, sliders, drag-and-drop) —
-    /// distinct from swipe, which scrolls content.
+    /// Sustained mouse drag for icon rearrangement, sliders, drag-and-drop,
+    /// and the horizontal page-navigation path used by swipe.
     public static func drag(from start: CGPoint, to end: CGPoint, durationMs: Int, through waypoint: CGPoint? = nil, windowBounds: CGRect? = nil) throws {
         let duration = clampDurationMs(durationMs)
         guard let down = mouseEvent(.leftMouseDown, at: start),
@@ -300,11 +300,13 @@ public enum MirrorInput {
         }
     }
 
-    /// Swipe = trackpad-style continuous scroll gesture posted at the
-    /// midpoint. Content follows the finger: positive deltaY drags content
-    /// down, negative deltaX drags content left.
+    /// Content follows the finger. Horizontal gestures use a moving pointer
+    /// with a complete down/drag/up sequence: on current iPhone Mirroring,
+    /// synthesized horizontal scroll phases move SpringBoard but never settle
+    /// its page transition. The touch-drag path completes that transition.
+    /// Vertical lists require trackpad scrolls; pointer drags are ignored there.
     ///
-    /// The phase sequence comes from `SwipePlan.script(for:)`, and every
+    /// For vertical swipes, phases come from `SwipePlan.script(for:)`, and every
     /// CGEvent is materialized BEFORE anything posts: a creation failure
     /// mid-gesture would cut the sequence short of its lift/close, leaving
     /// iOS tracking a phantom finger — SpringBoard wedges mid-transition and
@@ -313,6 +315,12 @@ public enum MirrorInput {
         let duration = clampDurationMs(durationMs)
         let deltaX = end.x - start.x
         let deltaY = end.y - start.y
+        guard deltaX != 0 || deltaY != 0 else { return }
+        if abs(deltaX) > abs(deltaY) {
+            try drag(from: start, to: end, durationMs: duration,
+                     through: waypoint, windowBounds: windowBounds)
+            return
+        }
         let midpoint = CGPoint(x: start.x + deltaX / 2, y: start.y + deltaY / 2)
         let plan = SwipePlan.plan(deltaX: deltaX, deltaY: deltaY, durationMs: duration)
         let steps = SwipePlan.script(for: plan)

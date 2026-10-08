@@ -138,9 +138,36 @@ public final class MirrorWindowBridge: @unchecked Sendable {
         var hostChildrenRef: CFTypeRef?
         AXUIElementCopyAttributeValue(hostingView, kAXChildrenAttribute as CFString, &hostChildrenRef)
         if let hostChildren = hostChildrenRef as? [AXUIElement], !hostChildren.isEmpty {
+            // Newer Mirroring versions expose window chrome inside the hosting
+            // view even during a live session. Do not mistake that toolbar for
+            // a pause overlay. Unknown leaves still conservatively mean paused.
+            if hostChildren.allSatisfy({ Self.isWindowChrome($0, depth: 0) }) {
+                return .connected
+            }
             return .paused
         }
         return .connected
+    }
+
+    private static func isWindowChrome(_ element: AXUIElement, depth: Int) -> Bool {
+        guard depth < 8 else { return false }
+        func attribute(_ key: String) -> String? {
+            var value: CFTypeRef?
+            AXUIElementCopyAttributeValue(element, key as CFString, &value)
+            return value as? String
+        }
+        let subrole = attribute(kAXSubroleAttribute)
+        if ["AXCloseButton", "AXMinimizeButton", "AXZoomButton"].contains(subrole ?? "") {
+            return true
+        }
+        let identifier = attribute(kAXIdentifierAttribute)
+        if ["app.grid.3x3", "iphone.app.switcher"].contains(identifier ?? "") {
+            return true
+        }
+        var childrenRef: CFTypeRef?
+        AXUIElementCopyAttributeValue(element, kAXChildrenAttribute as CFString, &childrenRef)
+        guard let children = childrenRef as? [AXUIElement], !children.isEmpty else { return false }
+        return children.allSatisfy { isWindowChrome($0, depth: depth + 1) }
     }
 
     /// Titles of overlay buttons that free a paused/interrupted session,

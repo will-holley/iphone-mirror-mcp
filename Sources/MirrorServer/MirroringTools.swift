@@ -118,7 +118,7 @@ enum MirroringTools {
 
             RegisteredTool(
                 name: "swipe",
-                description: "Swipe/scroll with a trackpad-style gesture — content follows the finger (swipe up = scroll down the page). Fast swipes flick with momentum. Use drag instead for moving icons or sliders. \(coordinateNote)",
+                description: "Swipe/scroll — content follows the finger (swipe up = scroll down the page). Horizontal swipes use a touch drag for page/carousel navigation; vertical swipes use trackpad scrolling, with momentum for fast swipes. Use drag instead for moving icons or sliders. \(coordinateNote)",
                 schema: ["type": "object", "properties": .object(swipeProperties), "required": ["from_x", "from_y", "to_x", "to_y"]]
             ) { args in
                 try await session.swipe(

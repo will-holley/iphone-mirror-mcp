@@ -65,8 +65,12 @@ derived from `CGWindowList` ordering.
 
 ## Gestures
 
-A swipe is a trackpad-style continuous scroll, not a wheel event — bare scroll
-events are ignored by the session. The full phase sequence is:
+Swipes use two input paths. Horizontal gestures use mouse down/drag/up with
+movement deltas. On the tested current Mirroring build, synthetic horizontal
+scroll events reach macOS with correct phases but leave SpringBoard between
+pages; touch drags settle properly and leave subsequent input responsive.
+Vertical lists ignore mouse drags, so vertical gestures retain trackpad-style
+continuous scrolling. The vertical phase sequence is:
 
 ```
 MayBegin prime → Began → Changed… → zero-delta Ended (the lift)
@@ -99,11 +103,29 @@ hard invariant, not a style choice: a truncated sequence leaves iOS tracking a
 finger that never lifted, SpringBoard wedges mid-transition, and every
 subsequent input is dropped while video keeps streaming. `mirror_restart`
 recovers; nothing else does. `SwipeScriptTests` pins the termination
-guarantees across a broad input grid.
+guarantees across a broad input grid. `scripts/test_home_swipes.py` additionally
+checks actual horizontal page changes, reverse swipes, and a working Home
+command after each set at three speeds. Run it separately with
+`python3 scripts/test_home_swipes.py` on a
+connected phone with at least two Home Screen pages. Unit phase checks alone
+do not establish that a gesture completes on the phone.
+
+Live validation on macOS 27.0.1 (26A434), iPhone Mirroring 2.0 (114.56.5.1):
+the rebuilt MCP `swipe` command passed nine horizontal Home Screen swipes at
+180, 350, and 900 ms, including reverse-page alignment and three post-swipe
+Home actions. Screenshots confirmed settled pages. Manual MCP checks also
+confirmed vertical scrolling in both directions in Settings at 500 ms.
+The script uses fast OCR
+because accurate Vision recognition stalled on this test machine. It needs
+at least eight readable Home Screen labels and does not cover every app or
+diagonal gesture.
 
 ## Session state
 
-State is detected through AX children. Pause overlays expose **no** AX
+State is detected through AX children, excluding recognized window controls
+and the Home/App Switcher toolbar that newer versions expose inside the
+hosting view even during a connected session. Unknown UI still counts as
+paused. Pause overlays may expose **no** AX
 buttons, so resume falls back to clicking the two known overlay layouts —
 Resume at the window center, and "iPhone in Use → Connect" at about 65% height.
 
